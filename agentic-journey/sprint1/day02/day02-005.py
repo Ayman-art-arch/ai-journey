@@ -4,6 +4,8 @@ Objective: Leverage Gemini's massive context window to analyze a long document
 """
 from dotenv import load_dotenv
 from pathlib import Path
+from pypdf import PdfReader
+import sys
 import os
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
@@ -66,6 +68,12 @@ offering (+67% compared to Q3). Client retention rate remains stable at 94%.
 """
 
 
+def read_pdf(path: str) -> str:
+    """Extract all text from a PDF file."""
+    reader = PdfReader(path)
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
 def analyze_document(document: str, question: str) -> str:
     """Send a full document + question to Gemini."""
     prompt = f"""You are a senior business analyst. Here is a document to analyze.
@@ -86,26 +94,36 @@ Respond in a structured and concise manner."""
 
 
 if __name__ == "__main__":
+    # Use a PDF file if provided as argument, otherwise fall back to the demo text
+    if len(sys.argv) > 1:
+        pdf_path = sys.argv[1]
+        print(f"Reading PDF: {pdf_path}")
+        document = read_pdf(pdf_path)
+    else:
+        print("No PDF provided — using built-in demo document.")
+        print("Usage: python day02-005.py <path/to/file.pdf>\n")
+        document = LONG_DOCUMENT
+
     # Show document size
-    token_estimate = len(LONG_DOCUMENT.split()) * 1.3  # rough estimate
+    token_estimate = len(document.split()) * 1.3  # rough estimate
     print(f"Document: ~{int(token_estimate)} estimated tokens")
     print(f"Gemini capacity: 1,000,000 tokens")
     print(f"Usage: {token_estimate / 1_000_000:.4%}\n")
 
     # Question 1: Summary
     print("=== Question 1: Summary ===")
-    answer = analyze_document(LONG_DOCUMENT, "Summarize the 3 key takeaways from this report as bullet points.")
+    answer = analyze_document(document, "Summarize the 3 key takeaways from this document as bullet points.")
     print(answer)
 
     # Question 2: Specific extraction
     print("\n=== Question 2: Extraction ===")
-    answer = analyze_document(LONG_DOCUMENT, "What are the identified risks and recommended actions?")
+    answer = analyze_document(document, "What are the identified risks and recommended actions?")
     print(answer)
 
     # Question 3: Critical analysis
     print("\n=== Question 3: Analysis ===")
     answer = analyze_document(
-        LONG_DOCUMENT,
-        "Which division should be the investment priority and why?",
+        document,
+        "What is the most important insight in this document and why?",
     )
     print(answer)
